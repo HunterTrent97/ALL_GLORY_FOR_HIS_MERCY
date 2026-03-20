@@ -1,0 +1,43 @@
+global:
+  region: us-east-1
+  scan_all_regions: false
+
+resources:
+
+  ec2:
+    match_name_tags: []
+
+  s3:
+    match_names: []
+
+  rds:
+    match_identifiers: []
+
+  eks:
+    match_clusters: []
+    match_nodegroups: []
+    match_addons: []
+    match_fargate_profiles: []
+
+    deep_inspection:
+      kubectl_contexts: []
+
+  vpc:
+    match_vpc_names: []
+    match_subnet_names: []
+    match_route_table_names: []
+    match_internet_gateway_names: []
+    match_nat_gateway_names: []
+    match_security_group_names: []
+    match_network_acl_names: []
+    match_vpc_endpoint_names: []
+
+  kms:
+    match_aliases: []
+
+  ecr:
+    match_repositories: []
+
+  elb:
+    match_load_balancer_names: []
+    match_target_group_names: []
