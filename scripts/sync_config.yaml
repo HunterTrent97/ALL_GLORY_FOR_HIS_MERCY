@@ -1,34 +1,33 @@
+# =========================
+# SOURCE BUCKET
+# =========================
 source:
-  bucket: your-source-bucket
-  prefix: your/source/prefix
+  bucket: your-source-bucket        # Bucket name ONLY (no s3://)
+  prefix: your/source/prefix        # Path inside bucket
 
+# =========================
+# DESTINATION BUCKET
+# =========================
 destination:
   bucket: your-dest-bucket
   prefix: your/dest/prefix
 
+# =========================
+# AWS SETTINGS
+# =========================
 aws:
-  retry_mode: standard
-  max_attempts: 15
-  max_pool_connections: 80
+  region: us-gov-west-1             # REQUIRED for GovCloud
 
-copy:
-  extra_args: {}
-
+# =========================
+# EXECUTION SETTINGS
+# =========================
 execution:
-  workers: 8
-  per_file_concurrency: 4
-  multipart_threshold_mb: 128
-  multipart_chunk_mb: 64
-  max_in_flight: 32
+  dry_run: true                     # true = simulate only, false = real sync
 
-  dry_run: true
-  limit: 10
-
-  state_file: s3_sync_state.txt
-  fail_log_file: s3_sync_failures.log
-
-  stop_on_expired_token: true
-
+  # Retry behavior (handled in Python)
   retryable_attempts: 5
   retry_backoff_base_seconds: 2
   retry_backoff_max_seconds: 30
+
+  # Failure logging file
+  fail_log_file: s3_sync_failures.log
