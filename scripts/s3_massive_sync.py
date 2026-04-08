@@ -1,156 +1,157 @@
 #!/usr/bin/env python3
 
-import argparse, os, threading, time, random
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, as_completed
-from datetime import datetime
-import boto3, yaml
-from boto3.s3.transfer import TransferConfig
-from botocore.config import Config
-from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError, ConnectTimeoutError, ConnectionClosedError
+import subprocess
+import yaml
+import sys
+import time
 
-def parse():
-    p = argparse.ArgumentParser()
-    p.add_argument("--config", required=True)
-    return p.parse_args()
 
+# =========================
+# Load YAML config
+# =========================
 def load_cfg(path):
     with open(path) as f:
         return yaml.safe_load(f)
 
-def load_state(path):
-    return set(open(path).read().splitlines()) if os.path.exists(path) else set()
 
-def save_state(state, path, key, lock):
-    with lock:
-        if key not in state:
-            state.add(key)
-            with open(path, "a") as f:
-                f.write(key + "\n")
+# =========================
+# Run shell command
+# =========================
+def run(cmd):
+    # Executes AWS CLI command
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    return result.returncode, result.stdout, result.stderr
 
-def log_fail(path, src, dst, err, lock):
-    ts = datetime.utcnow().isoformat()+"Z"
-    if isinstance(err, ClientError):
-        code = err.response.get("Error", {}).get("Code")
-        msg = err.response.get("Error", {}).get("Message")
-    else:
-        code = type(err).__name__
-        msg = str(err)
-    with lock:
-        with open(path, "a") as f:
-            f.write(f"timestamp={ts} | src={src} | dest={dst} | reason={code} | detail={msg}\n")
 
-def list_objs(s3, bucket, prefix):
-    p = s3.get_paginator("list_objects_v2")
-    for page in p.paginate(Bucket=bucket, Prefix=prefix):
-        for o in page.get("Contents", []):
-            yield o["Key"], o["Size"]
+# =========================
+# Detect token/auth errors
+# =========================
+def is_auth_error(output):
+    return any(x in output for x in [
+        "ExpiredToken",
+        "expired",
+        "InvalidClientTokenId",
+        "UnrecognizedClientException",
+        "SSOProviderInvalidToken"
+    ])
 
-def rel_key(k, prefix):
-    return k[len(prefix.rstrip("/"))+1:] if prefix and k.startswith(prefix.rstrip("/")+"/") else k
 
-def dest_key(src, srcp, dstp):
-    r = rel_key(src, srcp)
-    return f"{dstp.rstrip('/')}/{r}" if dstp else r
+# =========================
+# Detect retryable errors
+# =========================
+def is_retryable(output):
+    return any(x in output for x in [
+        "RequestTimeout",
+        "Throttling",
+        "SlowDown",
+        "500",
+        "502",
+        "503",
+        "504"
+    ])
 
-def exists(s3, bucket, key, size):
-    try:
-        return s3.head_object(Bucket=bucket, Key=key)["ContentLength"] == size
-    except ClientError as e:
-        if e.response["Error"]["Code"] in ["404","NoSuchKey","NotFound"]:
-            return False
-        raise
 
-def retryable(e):
-    if isinstance(e,(EndpointConnectionError,ReadTimeoutError,ConnectTimeoutError,ConnectionClosedError)):
-        return True
-    if isinstance(e,ClientError):
-        return e.response["Error"]["Code"] in {
-            "RequestTimeout","Throttling","SlowDown","InternalError","ServiceUnavailable"
-        }
-    return False
+# =========================
+# Detect fatal errors
+# =========================
+def is_fatal(output):
+    return any(x in output for x in [
+        "AccessDenied",
+        "NoSuchBucket",
+        "403",
+        "404"
+    ])
 
-def expired(e):
-    return isinstance(e,ClientError) and e.response["Error"]["Code"]=="ExpiredToken"
 
-def backoff(base, maxv, attempt):
-    time.sleep(min(maxv, base*(2**(attempt-1))) + random.random())
-
-def process(s3,cfg,state,lock,stop,key,size,tx):
-    dst = dest_key(key,cfg["source"].get("prefix",""),cfg["destination"].get("prefix",""))
-    sf = cfg["execution"]["state_file"]
-    ff = cfg["execution"]["fail_log_file"]
-    db = cfg["destination"]["bucket"]
-    sb = cfg["source"]["bucket"]
-
-    if key in state: return "skip-local"
-
-    try:
-        if exists(s3,db,dst,size):
-            save_state(state,sf,key,lock)
-            return "skip-s3"
-    except Exception as e:
-        if expired(e): stop.set(); return "abort"
-        log_fail(ff,key,dst,e,lock); return "fail"
-
-    if cfg["execution"]["dry_run"]: return "dry"
-
-    for i in range(1,cfg["execution"]["retryable_attempts"]+1):
-        try:
-            s3.copy({"Bucket":sb,"Key":key},db,dst,Config=tx,ExtraArgs=cfg.get("copy",{}).get("extra_args") or {})
-            save_state(state,sf,key,lock)
-            return "copied"
-        except Exception as e:
-            if expired(e):
-                stop.set()
-                return "abort"
-            if retryable(e) and i < cfg["execution"]["retryable_attempts"]:
-                backoff(cfg["execution"]["retry_backoff_base_seconds"],cfg["execution"]["retry_backoff_max_seconds"],i)
-                continue
-            log_fail(ff,key,dst,e,lock)
-            return "fail"
-
+# =========================
+# Main execution
+# =========================
 def main():
-    a = parse()
-    cfg = load_cfg(a.config)
+    if len(sys.argv) < 3:
+        print("Usage: python s3_cli_sync.py --config <file>")
+        sys.exit(1)
 
-    s3 = boto3.client("s3", config=Config(
-        retries={"mode":cfg["aws"]["retry_mode"],"max_attempts":cfg["aws"]["max_attempts"]},
-        max_pool_connections=cfg["aws"]["max_pool_connections"]
-    ))
+    # Load config file
+    cfg_path = sys.argv[2]
+    cfg = load_cfg(cfg_path)
 
-    tx = TransferConfig(
-        multipart_threshold=cfg["execution"]["multipart_threshold_mb"]*1024*1024,
-        multipart_chunksize=cfg["execution"]["multipart_chunk_mb"]*1024*1024,
-        max_concurrency=cfg["execution"]["per_file_concurrency"]
-    )
+    region = cfg["aws"]["region"]
 
-    state = load_state(cfg["execution"]["state_file"])
-    lock = threading.Lock()
-    stop = threading.Event()
+    # Build S3 paths
+    src = f"s3://{cfg['source']['bucket']}/{cfg['source']['prefix']}"
+    dst = f"s3://{cfg['destination']['bucket']}/{cfg['destination']['prefix']}"
 
-    results = {"copied":0,"fail":0,"skip-local":0,"skip-s3":0,"dry":0,"abort":0}
+    # Build CLI sync command
+    cmd = f"aws s3 sync {src} {dst} --region {region}"
 
-    with ThreadPoolExecutor(max_workers=cfg["execution"]["workers"]) as ex:
-        inflight=set()
-        count=0
-        for k,s in list_objs(s3,cfg["source"]["bucket"],cfg["source"].get("prefix","")):
-            if stop.is_set(): break
-            if cfg["execution"]["limit"] and count>=cfg["execution"]["limit"]: break
+    # Add dry-run if enabled
+    if cfg["execution"]["dry_run"]:
+        cmd += " --dryrun"
 
-            inflight.add(ex.submit(process,s3,cfg,state,lock,stop,k,s,tx))
-            count+=1
+    retries = cfg["execution"]["retryable_attempts"]
+    base = cfg["execution"]["retry_backoff_base_seconds"]
+    fail_log = cfg["execution"]["fail_log_file"]
 
-            if len(inflight)>=cfg["execution"]["max_in_flight"]:
-                done,inflight=wait(inflight,return_when=FIRST_COMPLETED)
-                for f in done: results[f.result()]+=1
+    attempt = 1
 
-        for f in as_completed(inflight):
-            results[f.result()]+=1
+    while attempt <= retries:
+        print(f"\n=== ATTEMPT {attempt}/{retries} ===")
+        print(cmd)
 
-    print(results)
+        code, out, err = run(cmd)
+        combined = out + err
 
-    if stop.is_set():
-        raise SystemExit(2)
+        # =========================
+        # SUCCESS
+        # =========================
+        if code == 0:
+            print("Sync successful")
+            sys.exit(0)
+
+        print("Sync failed:")
+        print(combined)
+
+        # =========================
+        # AUTH / TOKEN ERROR
+        # =========================
+        if is_auth_error(combined):
+            print("Token expired or invalid → exiting for reauth")
+            sys.exit(2)   # Shell will re-run promote
+
+        # =========================
+        # FATAL ERRORS (STOP)
+        # =========================
+        if is_fatal(combined):
+            print("Fatal error — stopping")
+
+            with open(fail_log, "a") as f:
+                f.write(combined + "\n")
+
+            sys.exit(1)
+
+        # =========================
+        # RETRYABLE ERRORS
+        # =========================
+        if is_retryable(combined):
+            sleep_time = min(60, base * (2 ** attempt))
+            print(f"Retrying in {sleep_time}s...")
+            time.sleep(sleep_time)
+            attempt += 1
+            continue
+
+        # =========================
+        # UNKNOWN ERROR
+        # =========================
+        print("Unknown error — logging + exit")
+
+        with open(fail_log, "a") as f:
+            f.write(combined + "\n")
+
+        sys.exit(1)
+
+    print("Max retries reached")
+    sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
