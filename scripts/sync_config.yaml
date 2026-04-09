@@ -2,8 +2,8 @@
 # SOURCE BUCKET
 # =========================
 source:
-  bucket: your-source-bucket        # Bucket name ONLY (no s3://)
-  prefix: your/source/prefix        # Path inside bucket
+  bucket: your-source-bucket       
+  prefix: your/source/prefix       
 
 # =========================
 # DESTINATION BUCKET
@@ -16,7 +16,7 @@ destination:
 # AWS SETTINGS
 # =========================
 aws:
-  region: us-gov-west-1             # REQUIRED for GovCloud
+  region: us-gov-west-1             
 
 # =========================
 # EXECUTION SETTINGS
