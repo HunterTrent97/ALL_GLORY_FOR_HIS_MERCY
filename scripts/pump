@@ -1,155 +1,224 @@
+----------------------------------------------------------------------
+-- 1. CLEAN UP OLD / STUCK DATAPUMP JOBS
+-- Run this FIRST
+----------------------------------------------------------------------
+
 DECLARE
     h NUMBER;
 BEGIN
-    ------------------------------------------------------------------
-    -- 1. DEV DATA
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+    FOR r IN (
+        SELECT job_name
+        FROM dba_datapump_jobs
+        WHERE owner_name = 'NDGPREMASTER'
+    )
+    LOOP
+        BEGIN
+            h := DBMS_DATAPUMP.ATTACH(
+                    job_name   => r.job_name,
+                    owner_name => 'NDGPREMASTER'
+                 );
+
+            DBMS_DATAPUMP.STOP_JOB(
+                handle      => h,
+                immediate   => 1,
+                keep_master => 0
+            );
+        EXCEPTION
+            WHEN OTHERS THEN NULL;
+        END;
+    END LOOP;
+END;
+/
+
+
+
+
+
+
+----------------------------------------------------------------------
+-- 2. DEV DATA SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_dev_data_%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_dev_data_%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'dev_data_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'dev_data_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+END;
+/
 
-    ------------------------------------------------------------------
-    -- 2. FO EXPORT A
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+
+
+
+
+----------------------------------------------------------------------
+-- 3. FO EXPORT FILES A SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_dev_fo_export_files_A%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_dev_fo_export_files_A%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'fo_A_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'fo_A_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+END;
+/
 
-    ------------------------------------------------------------------
-    -- 3. FO EXPORT B
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+
+
+
+
+
+----------------------------------------------------------------------
+-- 4. FO EXPORT FILES B SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_dev_fo_export_files_B%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_dev_fo_export_files_B%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'fo_B_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'fo_B_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+END;
+/
 
-    ------------------------------------------------------------------
-    -- 4. IVV DATA
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+
+
+
+----------------------------------------------------------------------
+-- 5. IVV DATA SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_ivv_data_%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_ivv_data_%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ivv_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'ivv_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+END;
+/
 
-    ------------------------------------------------------------------
-    -- 5. SIT DATA
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+
+
+
+----------------------------------------------------------------------
+-- 6. SIT DATA SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_sit_data_%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_sit_data_%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'sit_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'sit_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+END;
+/
 
-    ------------------------------------------------------------------
-    -- 6. UAT DATA
-    ------------------------------------------------------------------
-    h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'FULL'
+
+
+
+
+
+----------------------------------------------------------------------
+-- 7. UAT DATA SET
+----------------------------------------------------------------------
+
+DECLARE
+    h NUMBER;
+BEGIN
+    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+
+    DBMS_DATAPUMP.ADD_FILE(
+        h,
+        'ndg_uat_data_%U.dmp',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
     );
 
     DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_uat_data_%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-    );
-
-    DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'uat_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+        h,
+        'uat_import.log',
+        'DATA_PUMP_DIR',
+        DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
-
 END;
 /
