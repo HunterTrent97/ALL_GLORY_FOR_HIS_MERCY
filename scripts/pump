@@ -1,0 +1,58 @@
+DECLARE
+    h NUMBER;
+    v_failed VARCHAR2(32767) := '';
+BEGIN
+
+    -- Open ONE import job
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'SCHEMA'
+    );
+
+    -- Add ALL dump files into same job
+    FOR f IN (
+        SELECT filename
+        FROM TABLE(rdsadmin.rds_file_util.listdir('DATA_PUMP_DIR'))
+        WHERE filename LIKE ''
+          AND filename <> ''
+        ORDER BY filename
+    ) LOOP
+
+        BEGIN
+            DBMS_DATAPUMP.ADD_FILE(
+                handle    => h,
+                filename  => f.filename,
+                directory => 'DATA_PUMP_DIR',
+                filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+            );
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                v_failed := v_failed || f.filename || ' | ADD_FILE ERROR: ' || SQLERRM || CHR(10);
+        END;
+
+    END LOOP;
+
+    -- One log file only
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_bulk_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.SET_PARAMETER(
+        h,
+        'TABLE_EXISTS_ACTION',
+        'APPEND'
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
+    IF v_failed IS NOT NULL AND LENGTH(v_failed) > 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, v_failed);
+    END IF;
+
+END;
+/
