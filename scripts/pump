@@ -1,34 +1,155 @@
 DECLARE
     h NUMBER;
 BEGIN
+    ------------------------------------------------------------------
+    -- 1. DEV DATA
+    ------------------------------------------------------------------
     h := DBMS_DATAPUMP.OPEN(
         operation => 'IMPORT',
         job_mode  => 'FULL'
     );
 
-    FOR f IN (
-        SELECT filename
-        FROM TABLE(rdsadmin.rds_file_util.listdir('DATA_PUMP_DIR'))
-        WHERE LOWER(filename) LIKE '%.dmp'
-          AND LOWER(filename) <> 'ndg_metadata.dmp'
-        ORDER BY filename
-    )
-    LOOP
-        DBMS_DATAPUMP.ADD_FILE(
-            handle    => h,
-            filename  => f.filename,
-            directory => 'DATA_PUMP_DIR',
-            filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-        );
-    END LOOP;
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_dev_data_%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
 
     DBMS_DATAPUMP.ADD_FILE(
         handle    => h,
-        filename  => 'ndg_bulk_import.log',
+        filename  => 'dev_data_import.log',
         directory => 'DATA_PUMP_DIR',
         filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
     );
 
     DBMS_DATAPUMP.START_JOB(h);
     DBMS_DATAPUMP.DETACH(h);
+
+    ------------------------------------------------------------------
+    -- 2. FO EXPORT A
+    ------------------------------------------------------------------
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'FULL'
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_dev_fo_export_files_A%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'fo_A_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
+    ------------------------------------------------------------------
+    -- 3. FO EXPORT B
+    ------------------------------------------------------------------
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'FULL'
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_dev_fo_export_files_B%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'fo_B_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
+    ------------------------------------------------------------------
+    -- 4. IVV DATA
+    ------------------------------------------------------------------
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'FULL'
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_ivv_data_%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ivv_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
+    ------------------------------------------------------------------
+    -- 5. SIT DATA
+    ------------------------------------------------------------------
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'FULL'
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_sit_data_%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'sit_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
+    ------------------------------------------------------------------
+    -- 6. UAT DATA
+    ------------------------------------------------------------------
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'FULL'
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_uat_data_%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'uat_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    DBMS_DATAPUMP.START_JOB(h);
+    DBMS_DATAPUMP.DETACH(h);
+
 END;
+/
