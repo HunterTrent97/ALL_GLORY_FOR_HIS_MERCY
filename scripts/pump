@@ -20,13 +20,6 @@ BEGIN
         filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
       );
 
-  DBMS_DATAPUMP.METADATA_REMAP(
-        handle    => h,
-        name      => 'REMAP_SCHEMA',
-        old_value => 'DEV_NDGRANTS',
-        value     => 'NDGPREMASTER'
-      );
-
   DBMS_DATAPUMP.SET_PARAMETER(
         handle => h,
         name   => 'TABLE_EXISTS_ACTION',
