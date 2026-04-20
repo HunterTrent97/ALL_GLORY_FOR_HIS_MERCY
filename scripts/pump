@@ -1,18 +1,39 @@
 DECLARE
-    h NUMBER;
+  h NUMBER;
 BEGIN
-    h := DBMS_DATAPUMP.OPEN('IMPORT','FULL');
+  h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'SCHEMA'
+      );
 
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_01.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_02.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_03.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_04.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_05.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_06.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_07.dmp','DATA_PUMP_DIR',NULL,1);
-    DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_08.dmp','DATA_PUMP_DIR',NULL,1);
+  DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_dev_data_%U.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+      );
 
-    DBMS_DATAPUMP.START_JOB(h);
-    DBMS_DATAPUMP.DETACH(h);
+  DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_dev_data_import.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+      );
+
+  DBMS_DATAPUMP.METADATA_REMAP(
+        handle    => h,
+        name      => 'REMAP_SCHEMA',
+        old_value => 'DEV_NDGRANTS',
+        value     => 'NDGPREMASTER'
+      );
+
+  DBMS_DATAPUMP.SET_PARAMETER(
+        handle => h,
+        name   => 'TABLE_EXISTS_ACTION',
+        value  => 'APPEND'
+      );
+
+  DBMS_DATAPUMP.START_JOB(h);
+  DBMS_DATAPUMP.DETACH(h);
 END;
 /
