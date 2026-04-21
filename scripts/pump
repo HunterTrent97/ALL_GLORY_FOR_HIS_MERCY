@@ -1,33 +1,60 @@
-WITH log_lines AS (
-  SELECT text
-  FROM TABLE(
-    rdsadmin.rds_file_util.read_text_file(
+DECLARE
+  h NUMBER;
+BEGIN
+  h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'SCHEMA');
+
+  ------------------------------------------------
+  -- ALL dump files required
+  ------------------------------------------------
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_01.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_02.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_03.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_04.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_05.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_06.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_07.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_08.dmp','DATA_PUMP_DIR',
+      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
+
+  ------------------------------------------------
+  -- log file
+  ------------------------------------------------
+  DBMS_DATAPUMP.ADD_FILE(
+      h,
+      'ndg_dev_data_import_v2.log',
       'DATA_PUMP_DIR',
-      'imp_ndg_metadata_remap.log'
-    )
-  )
-)
-SELECT DISTINCT
-  'CREATE ROLE "' ||
-  REGEXP_SUBSTR(text, '''([^'']+)''', 1, 1, NULL, 1) ||
-  '";' AS create_stmt
-FROM log_lines
-WHERE text LIKE '%ORA-01924:%role%';
+      DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+  );
 
+  ------------------------------------------------
+  -- if tables already exist
+  ------------------------------------------------
+  DBMS_DATAPUMP.SET_PARAMETER(
+      h,
+      'TABLE_EXISTS_ACTION',
+      'APPEND'
+  );
 
-
-
-
-
-WITH log_lines AS (
-  SELECT text
-  FROM TABLE(
-    rdsadmin.rds_file_util.read_text_file(
-      'DATA_PUMP_DIR',
-      'imp_ndg_metadata_remap.log'
-    )
-  )
-)
-SELECT DISTINCT text
-FROM log_lines
-WHERE text LIKE '%Object type USER%failed%';
+  ------------------------------------------------
+  -- start
+  ------------------------------------------------
+  DBMS_DATAPUMP.START_JOB(h);
+  DBMS_DATAPUMP.DETACH(h);
+END;
+/
