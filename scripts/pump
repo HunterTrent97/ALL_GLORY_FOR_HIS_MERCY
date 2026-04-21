@@ -2,58 +2,30 @@ DECLARE
   h NUMBER;
 BEGIN
   h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'SCHEMA');
+         operation => 'IMPORT',
+         job_mode  => 'SCHEMA'
+       );
 
-  ------------------------------------------------
-  -- ALL dump files required
-  ------------------------------------------------
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_01.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_02.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_03.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_04.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_05.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_06.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_07.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  DBMS_DATAPUMP.ADD_FILE(h,'ndg_dev_data_08.dmp','DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE);
-
-  ------------------------------------------------
-  -- log file
-  ------------------------------------------------
   DBMS_DATAPUMP.ADD_FILE(
-      h,
-      'ndg_dev_data_import_v2.log',
-      'DATA_PUMP_DIR',
-      DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    handle    => h,
+    filename  => 'ndg_dev_data_%U.dmp',
+    directory => 'DATA_PUMP_DIR',
+    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
   );
 
-  ------------------------------------------------
-  -- if tables already exist
-  ------------------------------------------------
+  DBMS_DATAPUMP.ADD_FILE(
+    handle    => h,
+    filename  => 'ndg_dev_data_import_v3.log',
+    directory => 'DATA_PUMP_DIR',
+    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+  );
+
   DBMS_DATAPUMP.SET_PARAMETER(
-      h,
-      'TABLE_EXISTS_ACTION',
-      'APPEND'
+    handle => h,
+    name   => 'TABLE_EXISTS_ACTION',
+    value  => 'APPEND'
   );
 
-  ------------------------------------------------
-  -- start
-  ------------------------------------------------
   DBMS_DATAPUMP.START_JOB(h);
   DBMS_DATAPUMP.DETACH(h);
 END;
