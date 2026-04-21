@@ -1,32 +1,29 @@
-DECLARE
-  h NUMBER;
-BEGIN
-  h := DBMS_DATAPUMP.OPEN(
-        operation => 'IMPORT',
-        job_mode  => 'SCHEMA'
-      );
-
-  DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_dev_data_%U.dmp',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-      );
-
-  DBMS_DATAPUMP.ADD_FILE(
-        handle    => h,
-        filename  => 'ndg_dev_data_import.log',
-        directory => 'DATA_PUMP_DIR',
-        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
-      );
-
-  DBMS_DATAPUMP.SET_PARAMETER(
-        handle => h,
-        name   => 'TABLE_EXISTS_ACTION',
-        value  => 'APPEND'
-      );
-
-  DBMS_DATAPUMP.START_JOB(h);
-  DBMS_DATAPUMP.DETACH(h);
-END;
-/
+WITH log_lines AS (
+    SELECT text
+    FROM TABLE(
+        rdsadmin.rds_file_util.read_text_file(
+            'DATA_PUMP_DIR',
+            'imp_ndg_metadata.dmp.log'
+        )
+    )
+),
+missing AS (
+    SELECT DISTINCT
+        REGEXP_SUBSTR(
+            text,
+            '''([^'']+)''',
+            1,
+            1,
+            NULL,
+            1
+        ) AS tablespace_name
+    FROM log_lines
+    WHERE text LIKE '%ORA-00959%'
+)
+SELECT
+    'CREATE TABLESPACE ' || tablespace_name ||
+    ' DATAFILE SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED;'
+AS create_stmt
+FROM missing
+WHERE tablespace_name IS NOT NULL
+ORDER BY tablespace_name;
