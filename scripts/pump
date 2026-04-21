@@ -1,29 +1,66 @@
-WITH log_lines AS (
-    SELECT text
-    FROM TABLE(
-        rdsadmin.rds_file_util.read_text_file(
-            'DATA_PUMP_DIR',
-            'imp_ndg_metadata.dmp.log'
-        )
-    )
-),
-missing AS (
-    SELECT DISTINCT
-        REGEXP_SUBSTR(
-            text,
-            '''([^'']+)''',
-            1,
-            1,
-            NULL,
-            1
-        ) AS tablespace_name
-    FROM log_lines
-    WHERE text LIKE '%ORA-00959%'
-)
-SELECT
-    'CREATE TABLESPACE ' || tablespace_name ||
-    ' DATAFILE SIZE 100M AUTOEXTEND ON NEXT 100M MAXSIZE UNLIMITED;'
-AS create_stmt
-FROM missing
-WHERE tablespace_name IS NOT NULL
-ORDER BY tablespace_name;
+DECLARE
+    h NUMBER;
+BEGIN
+    -- Open import job
+    h := DBMS_DATAPUMP.OPEN(
+        operation => 'IMPORT',
+        job_mode  => 'SCHEMA'
+    );
+
+    -- Dump file
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'ndg_metadata.dmp',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
+    );
+
+    -- Log file
+    DBMS_DATAPUMP.ADD_FILE(
+        handle    => h,
+        filename  => 'imp_ndg_metadata_remap.log',
+        directory => 'DATA_PUMP_DIR',
+        filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+    );
+
+    ------------------------------------------------------------------
+    -- REMAP ALL SOURCE TABLESPACES TO USERS
+    ------------------------------------------------------------------
+
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','DEV_NDGRANTS_BPM_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','DEV_NDGRANTS_CAMUNDA_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','DEV_NDGRANTS_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','DEV_NDGRANTS_FB_ARC_DATA','USERS');
+
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','IVV_NDGRANTS_BPM_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','IVV_NDGRANTS_CAMUNDA_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','IVV_NDGRANTS_FB_ARC_DATA','USERS');
+
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','SIT_NDGRANTS_BPM_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','SIT_NDGRANTS_CAMUNDA_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','SIT_NDGRANTS_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','SIT_NDGRANTS_FB_ARC_DATA','USERS');
+
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','STT_NDGRANTS_FB_ARC_DATA','USERS');
+
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','UAT_NDGRANTS_BPM_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','UAT_NDGRANTS_CAMUNDA_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','UAT_NDGRANTS_DATA','USERS');
+    DBMS_DATAPUMP.METADATA_REMAP(h,'REMAP_TABLESPACE','UAT_NDGRANTS_FB_ARC_DATA','USERS');
+
+    ------------------------------------------------------------------
+    -- Keep existing objects if present
+    ------------------------------------------------------------------
+    DBMS_DATAPUMP.SET_PARAMETER(
+        handle => h,
+        name   => 'TABLE_EXISTS_ACTION',
+        value  => 'APPEND'
+    );
+
+    -- Start job
+    DBMS_DATAPUMP.START_JOB(h);
+
+    -- Detach
+    DBMS_DATAPUMP.DETACH(h);
+END;
+/
