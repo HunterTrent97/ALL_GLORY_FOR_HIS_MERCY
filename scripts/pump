@@ -1,32 +1,28 @@
-DECLARE
-  h NUMBER;
-BEGIN
-  h := DBMS_DATAPUMP.OPEN(
-         operation => 'IMPORT',
-         job_mode  => 'SCHEMA'
-       );
+SELECT
+CASE
+  WHEN object_type = 'FUNCTION'
+    THEN 'ALTER FUNCTION "'||owner||'"."'||object_name||'" COMPILE;'
 
-  DBMS_DATAPUMP.ADD_FILE(
-    handle    => h,
-    filename  => 'ndg_dev_data_%U.dmp',
-    directory => 'DATA_PUMP_DIR',
-    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE
-  );
+  WHEN object_type = 'PROCEDURE'
+    THEN 'ALTER PROCEDURE "'||owner||'"."'||object_name||'" COMPILE;'
 
-  DBMS_DATAPUMP.ADD_FILE(
-    handle    => h,
-    filename  => 'ndg_dev_data_import_v3.log',
-    directory => 'DATA_PUMP_DIR',
-    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
-  );
+  WHEN object_type = 'PACKAGE'
+    THEN 'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE;'
 
-  DBMS_DATAPUMP.SET_PARAMETER(
-    handle => h,
-    name   => 'TABLE_EXISTS_ACTION',
-    value  => 'APPEND'
-  );
+  WHEN object_type = 'PACKAGE BODY'
+    THEN 'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE BODY;'
 
-  DBMS_DATAPUMP.START_JOB(h);
-  DBMS_DATAPUMP.DETACH(h);
-END;
-/
+  WHEN object_type = 'VIEW'
+    THEN 'ALTER VIEW "'||owner||'"."'||object_name||'" COMPILE;'
+
+  ELSE '-- unsupported type: '||object_type
+END AS compile_sql
+FROM dba_objects
+WHERE owner IN (
+'DEV_NDGRANTS_BPM',
+'SIT_NDGRANTS_BPM',
+'UAT_NDGRANTS_BPM',
+'IVV_NDGRANTS_BPM'
+)
+AND status = 'INVALID'
+ORDER BY owner, object_type, object_name;
