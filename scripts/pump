@@ -6,16 +6,8 @@ CASE
   WHEN object_type = 'PROCEDURE'
     THEN 'ALTER PROCEDURE "'||owner||'"."'||object_name||'" COMPILE;'
 
-  WHEN object_type = 'PACKAGE'
-    THEN 'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE;'
-
-  WHEN object_type = 'PACKAGE BODY'
-    THEN 'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE BODY;'
-
   WHEN object_type = 'VIEW'
     THEN 'ALTER VIEW "'||owner||'"."'||object_name||'" COMPILE;'
-
-  ELSE '-- unsupported type: '||object_type
 END AS compile_sql
 FROM dba_objects
 WHERE owner IN (
@@ -24,5 +16,38 @@ WHERE owner IN (
 'UAT_NDGRANTS_BPM',
 'IVV_NDGRANTS_BPM'
 )
-AND status = 'INVALID'
+AND status='INVALID'
+AND object_type IN ('FUNCTION','PROCEDURE','VIEW')
 ORDER BY owner, object_type, object_name;
+
+
+
+SELECT
+'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE;' AS compile_sql
+FROM dba_objects
+WHERE owner IN (
+'DEV_NDGRANTS_BPM',
+'SIT_NDGRANTS_BPM',
+'UAT_NDGRANTS_BPM',
+'IVV_NDGRANTS_BPM'
+)
+AND status='INVALID'
+AND object_type = 'PACKAGE'
+ORDER BY owner, object_name;
+
+
+
+
+
+SELECT
+'ALTER PACKAGE "'||owner||'"."'||object_name||'" COMPILE BODY;' AS compile_sql
+FROM dba_objects
+WHERE owner IN (
+'DEV_NDGRANTS_BPM',
+'SIT_NDGRANTS_BPM',
+'UAT_NDGRANTS_BPM',
+'IVV_NDGRANTS_BPM'
+)
+AND status='INVALID'
+AND object_type = 'PACKAGE BODY'
+ORDER BY owner, object_name;
